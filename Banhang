@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạp Hóa Pro - Quản lý & Bán hàng Thông minh</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html5-qrcode CDN for QR and Barcode scanning -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        @media print {
+            body * { visibility: hidden; }
+            #printable-receipt, #printable-receipt * { visibility: visible; }
+            #printable-receipt { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-50 text-slate-800 flex flex-col overflow-hidden">
+
+    <!-- Top Header Bar -->
+    <header class="bg-emerald-600 text-white shadow-md z-20 flex items-center justify-between px-4 py-3 flex-shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="bg-white text-emerald-600 p-2 rounded-xl shadow font-bold flex items-center justify-center">
+                <i class="fa-solid fa-store text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold leading-tight">Tạp Hóa Pro</h1>
+                <p class="text-xs text-emerald-100">Hệ thống Quản lý & Bán hàng Siêu tốc</p>
+            </div>
+        </div>
+        
+        <!-- Navigation Tabs -->
+        <nav class="hidden md:flex space-x-1 bg-emerald-700/60 p-1 rounded-xl">
+            <button onclick="switchTab('pos')" id="nav-pos" class="px-4 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-2 bg-white text-emerald-700 shadow">
+                <i class="fa-solid fa-cash-register"></i><span>Bán Hàng</span>
+            </button>
+            <button onclick="switchTab('inventory')" id="nav-inventory" class="px-4 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-2 text-white hover:bg-emerald-600">
+                <i class="fa-solid fa-boxes-stacked"></i><span>Kho Hàng</span>
+            </button>
+            <button onclick="switchTab('stats')" id="nav-stats" class="px-4 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-2 text-white hover:bg-emerald-600">
+                <i class="fa-solid fa-chart-pie"></i><span>Doanh Thu</span>
+            </button>
+        </nav>
+
+        <div class="flex items-center space-x-2">
+            <button onclick="openScannerModal('pos')" class="bg-emerald-500 hover:bg-emerald-400 text-white px-3 py-2 rounded-xl text-sm font-medium shadow flex items-center space-x-1.5 transition">
+                <i class="fa-solid fa-qrcode text-base"></i>
+                <span class="hidden sm:inline">Quét Nhanh</span>
+            </button>
+            <button onclick="resetAllData()" title="Khôi phục dữ liệu mẫu" class="bg-emerald-700 hover:bg-emerald-800 text-emerald-100 p-2 rounded-xl text-sm transition">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 overflow-hidden relative flex flex-col md:flex-row">
+
+        <!-- TAB 1: POS / BÁN HÀNG -->
+        <div id="tab-pos" class="tab-content flex-1 flex flex-col md:flex-row h-full overflow-hidden">
+            <!-- Left: Product Catalog & Search -->
+            <div class="flex-1 flex flex-col h-full bg-slate-50 p-4 overflow-hidden border-r border-slate-200">
+                <!-- Search & Filters -->
+                <div class="flex flex-col sm:flex-row gap-2 mb-4 flex-shrink-0">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400"></i>
+                        <input type="text" id="pos-search" oninput="renderPOSProducts()" placeholder="Tìm tên sản phẩm hoặc mã SKU..." 
+                            class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm">
+                    </div>
+                    <select id="pos-category-filter" onchange="renderPOSProducts()" class="bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm">
+                        <option value="">Tất cả danh mục</option>
+                    </select>
+                </div>
+
+                <!-- Product Grid -->
+                <div class="flex-1 overflow-y-auto pr-1">
+                    <div id="pos-product-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Cart & Checkout Summary -->
+            <div class="w-full md:w-96 lg:w-[420px] bg-white flex flex-col h-full shadow-lg flex-shrink-0 border-t md:border-t-0">
+                <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <h2 class="font-bold text-slate-800 flex items-center space-x-2">
+                        <i class="fa-solid fa-cart-shopping text-emerald-600"></i>
+                        <span>Giỏ Hàng Hiện Tại</span>
+                    </h2>
+                    <span id="cart-item-count" class="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-1 rounded-full">0 sản phẩm</span>
+                </div>
+
+                <!-- Cart Items List -->
+                <div id="cart-items-container" class="flex-1 overflow-y-auto p-4 space-y-3 divide-y divide-slate-100">
+                    <div class="text-center py-12 text-slate-400">
+                        <i class="fa-solid fa-basket-shopping text-4xl mb-2 text-slate-300"></i>
+                        <p class="text-sm">Giỏ hàng trống.<br>Chọn sản phẩm hoặc quét mã QR để thêm.</p>
+                    </div>
+                </div>
+
+                <!-- Cart Totals & Checkout Actions -->
+                <div class="p-4 bg-slate-50 border-t border-slate-200 flex-shrink-0 space-y-3">
+                    <div class="space-y-1.5 text-sm">
+                        <div class="flex justify-between text-slate-600">
+                            <span>Tổng tiền hàng:</span>
+                            <span id="cart-subtotal" class="font-medium">0 đ</span>
+                        </div>
+                        <div class="flex justify-between items-center text-slate-600">
+                            <span>Giảm giá:</span>
+                            <input type="number" id="cart-discount" value="0" min="0" oninput="updateCartTotals()" class="w-24 text-right px-2 py-1 bg-white border border-slate-300 rounded-lg text-sm focus:ring-1 focus:ring-emerald-500">
+                        </div>
+                        <div class="flex justify-between text-lg font-bold text-slate-900 pt-2 border-t border-slate-200">
+                            <span>Khách cần trả:</span>
+                            <span id="cart-total" class="text-emerald-600 font-extrabold">0 đ</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                        <button onclick="clearCart()" class="py-2.5 px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-xl text-sm transition flex items-center justify-center space-x-1.5">
+                            <i class="fa-solid fa-trash-can"></i><span>Hủy đơn</span>
+                        </button>
+                        <button onclick="openCheckoutModal()" id="btn-checkout" disabled class="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 text-white font-semibold rounded-xl text-sm transition shadow-md flex items-center justify-center space-x-1.5">
+                            <i class="fa-solid fa-wallet"></i><span>Thanh Toán</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: KHO HÀNG (INVENTORY) -->
+        <div id="tab-inventory" class="tab-content hidden flex-1 flex flex-col h-full bg-white p-4 overflow-hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 flex-shrink-0 pb-3 border-b border-slate-200">
+                <div class="flex items-center space-x-2">
+                    <h2 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-boxes-stacked text-emerald-600 mr-2"></i>Quản Lý Kho Hàng</h2>
+                    <span id="inventory-count-badge" class="bg-slate-100 text-slate-700 text-xs font-medium px-2.5 py-1 rounded-full">0 mặt hàng</span>
+                </div>
+                <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                    <div class="relative flex-1 sm:w-64">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400"></i>
+                        <input type="text" id="inventory-search" oninput="renderInventoryTable()" placeholder="Tìm sản phẩm kho..." 
+                            class="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <button onclick="openScannerModal('inventory')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-sm font-medium shadow transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-barcode"></i><span>Quét Nhập Kho</span>
+                    </button>
+                    <button onclick="openProductModal()" class="bg-slate-800 hover:bg-slate-700 text-white px-3.5 py-2 rounded-xl text-sm font-medium shadow transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-plus"></i><span>Thêm Mới</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Inventory Table -->
+            <div class="flex-1 overflow-y-auto border border-slate-200 rounded-xl">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-100 sticky top-0 text-slate-600 text-xs uppercase font-semibold">
+                        <tr>
+                            <th class="p-3">Mã SKU / QR</th>
+                            <th class="p-3">Tên Sản Phẩm</th>
+                            <th class="p-3">Danh Mục</th>
+                            <th class="p-3 text-right">Giá Nhập</th>
+                            <th class="p-3 text-right">Giá Bán</th>
+                            <th class="p-3 text-center">Tồn Kho</th>
+                            <th class="p-3 text-center">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-table-body" class="divide-y divide-slate-200 text-sm">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 3: THỐNG KÊ DOANH THU (STATS) -->
+        <div id="tab-stats" class="tab-content hidden flex-1 flex flex-col h-full bg-slate-50 p-4 overflow-y-auto">
+            <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                <i class="fa-solid fa-chart-pie text-emerald-600 mr-2"></i>Báo Cáo Doanh Thu & Thống Kê
+            </h2>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div class="bg-emerald-100 text-emerald-600 p-4 rounded-xl text-xl"><i class="fa-solid fa-coins"></i></div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Doanh thu hôm nay</p>
+                        <h3 id="stat-today-revenue" class="text-xl font-bold text-slate-800">0 đ</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div class="bg-blue-100 text-blue-600 p-4 rounded-xl text-xl"><i class="fa-solid fa-receipt"></i></div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Hóa đơn hôm nay</p>
+                        <h3 id="stat-today-orders" class="text-xl font-bold text-slate-800">0 đơn</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div class="bg-amber-100 text-amber-600 p-4 rounded-xl text-xl"><i class="fa-solid fa-wallet"></i></div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Tổng doanh thu tích lũy</p>
+                        <h3 id="stat-total-revenue" class="text-xl font-bold text-slate-800">0 đ</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div class="bg-rose-100 text-rose-600 p-4 rounded-xl text-xl"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Sản phẩm sắp hết (&lt;5)</p>
+                        <h3 id="stat-low-stock" class="text-xl font-bold text-slate-800">0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Orders History Table -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                <h3 class="font-bold text-slate-800 mb-3 flex items-center justify-between">
+                    <span>Lịch Sử Giao Dịch Gần Đây</span>
+                    <button onclick="clearOrderHistory()" class="text-xs text-rose-600 hover:text-rose-700 font-medium">Xóa lịch sử</button>
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-100 text-slate-600 text-xs uppercase font-semibold">
+                            <tr>
+                                <th class="p-3">Mã HĐ</th>
+                                <th class="p-3">Thời gian</th>
+                                <th class="p-3">Sản phẩm</th>
+                                <th class="p-3 text-right">Tổng tiền</th>
+                                <th class="p-3 text-center">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-history-body" class="divide-y divide-slate-200">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Mobile Bottom Navigation Bar -->
+    <nav class="md:hidden bg-white border-t border-slate-200 flex justify-around py-2.5 flex-shrink-0 z-20">
+        <button onclick="switchTab('pos')" id="mob-nav-pos" class="flex flex-col items-center text-emerald-600 text-xs font-semibold">
+            <i class="fa-solid fa-cash-register text-lg mb-1"></i><span>Bán hàng</span>
+        </button>
+        <button onclick="switchTab('inventory')" id="mob-nav-inventory" class="flex flex-col items-center text-slate-500 text-xs font-medium">
+            <i class="fa-solid fa-boxes-stacked text-lg mb-1"></i><span>Kho hàng</span>
+        </button>
+        <button onclick="switchTab('stats')" id="mob-nav-stats" class="flex flex-col items-center text-slate-500 text-xs font-medium">
+            <i class="fa-solid fa-chart-pie text-lg mb-1"></i><span>Doanh thu</span>
+        </button>
+    </nav>
+
+    <!-- QR / Barcode Scanner Modal with Robust Camera & Fallback -->
+    <div id="scanner-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
+            <div class="p-4 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
+                <h3 id="scanner-modal-title" class="font-bold text-slate-800 flex items-center">
+                    <i class="fa-solid fa-qrcode text-emerald-600 mr-2"></i>Quét mã QR / Barcode
+                </h3>
+                <button onclick="closeScannerModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-4 flex flex-col items-center space-y-3">
+                <!-- Camera viewport or error message box -->
+                <div id="camera-container" class="w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-900 aspect-video relative flex items-center justify-center">
+                    <div id="reader" class="w-full h-full"></div>
+                    <div id="camera-error-msg" class="absolute inset-0 bg-slate-900/90 text-white p-6 flex flex-col items-center justify-center text-center hidden">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-400 text-3xl mb-2"></i>
+                        <p id="camera-error-text" class="text-xs mb-3 text-slate-200">Camera không khả dụng hoặc chưa cấp quyền.</p>
+                        <button onclick="retryCamera()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-xs rounded-lg font-medium">Thử lại Camera</button>
+                    </div>
+                </div>
+                <p id="scanner-status" class="text-xs text-slate-500 text-center">Hướng camera về phía mã vạch hoặc chọn sản phẩm test mẫu bên dưới.</p>
+
+                <!-- Robust Fallback / Quick Simulate Section -->
+                <div class="w-full pt-3 border-t border-slate-200">
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-2">Nhập mã SKU hoặc chọn test nhanh mẫu:</label>
+                    <div class="flex gap-2 mb-2">
+                        <input type="text" id="manual-scan-input" placeholder="Nhập mã SKU (vd: 8934602001011)..." 
+                            class="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500">
+                        <button onclick="submitManualScan()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-xl">Xác nhận</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                        <button onclick="simulateScan('8934602001011')" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 hover:text-emerald-700 text-slate-700 rounded-lg text-xs font-mono">Mì Hảo Hảo</button>
+                        <button onclick="simulateScan('8935001712034')" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 hover:text-emerald-700 text-slate-700 rounded-lg text-xs font-mono">Coca Cola</butt
